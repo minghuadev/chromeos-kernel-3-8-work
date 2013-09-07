@@ -1,0 +1,114 @@
+Maxim MAX77XXX multi-function device
+
+MAX77XXX is a Mulitifunction device with PMIC, RTC and Charger on chip. It is
+interfaced to host controller using i2c interface. PMIC and Charger submodules
+are addressed using same i2c slave address whereas the RTC submodule can use
+a different i2c slave address (this feature is used for MAX77686).
+
+This document describes the binding for mfd device and PMIC submodule.
+
+Required properties:
+- compatible : Must be "maxim,max77686" or "maxim,max77802"
+- reg : Specifies the i2c slave address of PMIC block.
+- interrupts : This i2c device has an IRQ line connected to the main SoC.
+- interrupt-parent : The parent interrupt controller.
+
+Optional properties:
+- max77xxx,pmic-buck-default-dvs-idx: We'll always write this DVS index in the
+  PMIC for BUCKs with DVS (on 77686 this is bucks 2-4; on 77802 it is 1-4, 6).
+  NOTE: at the moment these bindings don't include enough details for actual
+  GPIO-DVS--this just lets you choose which single slot to use.
+
+- max77xxx,pmic-buck-dvs-gpios: The DVS GPIOs.  We'll try to set these GPIOs
+  to match pmic-buck-default-dvs-idx at probe time if they are defined.  If
+  some or all of these GPIOs are not defined it's assumed that the board has
+  any missing GPIOs hardwired to match pmic-buck-default-dvs-idx.
+
+- max77xxx,pmic-buck-selb-gpios: GPIOs to enable DVS-GPIO for BUCKs.
+  On 77686 should be three values: 2, 3, and 4.  On 77802 should be five
+  values: 1, 2, 3, 4, 6.  It is strongly suggested to include these GPIOs
+  if there's any chance that changing DVS GPIOs one line at a time might
+  glitch your DVS values.
+
+
+Optional node:
+- voltage-regulators : The regulators of max77686 have to be instantiated
+  under subnode named "voltage-regulators" using the following format.
+
+	regulator_name {
+		standard regulator constraints....
+	};
+	refer Documentation/devicetree/bindings/regulator/regulator.txt
+
+Required properties for each regulator:
+- regulator-op-mode : Regulator operating mode, the meaning is regulator-
+     dependent. Valid values are 0-3.
+
+  The regulator_name should be initialized with a string which matches
+  the hardware counterparts as follow:
+
+	-LDOn	:	for LDOs, where n can lie in range 1 to 26 (1 to 35
+			for MAX77802).
+			example: LDO1, LDO2, LDO26.
+	-BUCKn	:	for BUCKs, where n can lie in range 1 to 9 (1 TO 10
+			FOR max77802)
+			example: BUCK1, BUCK5, BUCK9.
+	EN32KHZ_AP, EN32KHZ_CP	: fake regulators which actually produce
+			32KHx clocks
+	P32KHZ	:	MAX77686 only: another 32KHz clock
+
+Optional subnode (to enable the RTC):
+ - rtc : Indicates that the PMIC includes a real-time-clock. For MAX77686
+	the reg property indicates the i2c slave address to use for talking
+	to this. For MAX77802 the reg property is not needed and should not
+	be specified.
+
+
+Example:
+
+	max77686@9 {
+		compatible = "maxim,max77686";
+		interrupt-parent = <&wakeup_eint>;
+		interrupts = <26 0>;
+		reg = <0x09>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		max77xxx,pmic-buck-default-dvs-idx = <1>;
+		max77xxx,pmic-buck-dvs-gpios = <&gpy7 6 0>,
+					       <&gpj4 2 0>,
+					       <&gpj4 3 0>;
+		max77xxx,pmic-buck-selb-gpios = <&gph0 2 0>,
+						<&gph0 3 0>,
+						<&gph0 4 0>,
+						<&gph0 5 0>,
+						<&gph0 6 0>;
+
+		voltage-regulators {
+			LDO11 {
+				regulator-name = "vdd_ldo11";
+				regulator-min-microvolt = <1900000>;
+				regulator-max-microvolt = <1900000>;
+				regulator-always-on;
+				regulator-op-mode = <3>;
+			};
+
+			BUCK1 {
+				regulator-name = "vdd_mif";
+				regulator-min-microvolt = <950000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-op-mode = <3>;
+			};
+
+			EN32KHZ_CP {
+				regulator-name = "en32khz_cp";
+				regulator-always-on;
+				regulator-op-mode = <1>;
+			};
+
+		rtc@c {
+			reg = <0xc>;
+		};
+	}

@@ -1,0 +1,24 @@
+Device-Tree bindings for mixer driver
+
+Required properties:
+- compatible: value should be:
+	1) "samsung,exynos4210-mixer"
+	2) "samsung,exynos5250-mixer"
+	3) "samsung,exynos5420-mixer"
+- reg: physical base address of the mixer and length of memory mapped
+	region.
+- interrupts: interrupt number to the cpu.
+- clocks: list of clock IDs from SoC clock driver.
+	a) mixer: It is required for gate operation on aclk_200_disp1 clock
+		which clocks the display1 block.
+	b) sclk_hdmi: Parent for mux mout_mixer.
+
+Example:
+
+	mixer {
+		compatible = "samsung,exynos5250-mixer";
+		reg = <0x14450000 0x10000>;
+		interrupts = <0 94 0>;
+		clocks = <&clock 343>, <&clock 136>;
+		clock-names = "mixer", "sclk_hdmi";
+	};
